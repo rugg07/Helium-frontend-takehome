@@ -307,7 +307,7 @@ export class ComponentSuggestionEngine {
 
     return {
       id: `evolution-${pattern.type}`,
-      category: pattern.type as any,
+      category: pattern.type as ComponentSuggestion['category'],
       tags: [pattern.type, 'evolution', 'advanced'],
       reason: `You have ${pattern.frequency} ${pattern.type} components. Consider building an advanced version to enhance your component library.`,
       translationKeys: [`component.advanced${pattern.type}.title`],

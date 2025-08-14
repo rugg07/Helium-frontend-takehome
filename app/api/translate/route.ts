@@ -13,7 +13,7 @@ function extractJsonObject(text: string): Record<string, string> {
   try {
     // Fast path if it is already JSON
     return JSON.parse(text);
-  } catch (_) {
+  } catch {
     // Try to extract the first {...} block
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) throw new Error('No JSON object found in model response');
@@ -64,8 +64,9 @@ Rules:
     }
 
     return Response.json({ translations: safe });
-  } catch (error: any) {
-    return Response.json({ error: error?.message || 'Translation failed' }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Translation failed';
+    return Response.json({ error: errorMessage }, { status: 500 });
   }
 }
 

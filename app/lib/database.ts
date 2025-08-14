@@ -203,7 +203,13 @@ export async function initializeDatabase(): Promise<void> {
       // Count empty cells
       for (const entry of allEntries) {
         for (const locale of supportedLocales) {
-          const val = (entry as any)[locale] || '';
+          let val = '';
+          if (locale === 'es') val = entry.es || '';
+          else if (locale === 'fr') val = entry.fr || '';
+          else if (locale === 'de') val = entry.de || '';
+          else if (locale === 'ja') val = entry.ja || '';
+          else if (locale === 'zh') val = entry.zh || '';
+          
           if (!val || String(val).trim() === '') {
             emptyCount++;
           }
@@ -750,7 +756,7 @@ export class SessionManager {
 
   async getOrCreateActiveSession(): Promise<Session> {
     await this.init();
-    let sessionId = this.getActiveSessionId();
+    const sessionId = this.getActiveSessionId();
     if (sessionId) {
       const sessions = this.listSessionsSync();
       const existing = sessions.find(s => s.id === sessionId);

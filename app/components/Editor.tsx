@@ -64,24 +64,34 @@ export default function Editor() {
   const processingTranslationsRef = useRef<boolean>(false);
   
   // Robustly extract plain text content from a message, regardless of SDK shape
-  const getMessageText = (msg: any): string => {
-    if (!msg) return '';
+  const getMessageText = (msg: unknown): string => {
+    if (!msg || typeof msg !== 'object') return '';
+    
+    const msgObj = msg as Record<string, unknown>;
+    
     // New UIMessage shape: parts: [{ type: 'text', text: string }, ...]
-    if (Array.isArray(msg.parts)) {
-      return msg.parts
-        .filter((p: any) => p && (p.type === 'text' || typeof p === 'string'))
-        .map((p: any) => (typeof p === 'string' ? p : (p.text || '')))
+    if (Array.isArray(msgObj.parts)) {
+      return msgObj.parts
+        .filter((p: unknown) => p && (typeof p === 'object' && (p as Record<string, unknown>).type === 'text' || typeof p === 'string'))
+        .map((p: unknown) => {
+          if (typeof p === 'string') return p;
+          const partObj = p as Record<string, unknown>;
+          return typeof partObj.text === 'string' ? partObj.text : '';
+        })
         .join('\n');
     }
     // Common ChatMessage shape: content: string
-    if (typeof msg.content === 'string') return msg.content;
+    if (typeof msgObj.content === 'string') return msgObj.content;
     // Sometimes content can be an array
-    if (Array.isArray(msg.content)) {
-      return msg.content
-        .map((c: any) => {
+    if (Array.isArray(msgObj.content)) {
+      return msgObj.content
+        .map((c: unknown) => {
           if (typeof c === 'string') return c;
-          if (c?.type === 'text') return c.text || '';
-          if (c?.content) return c.content;
+          if (typeof c === 'object' && c) {
+            const cObj = c as Record<string, unknown>;
+            if (cObj.type === 'text' && typeof cObj.text === 'string') return cObj.text;
+            if (typeof cObj.content === 'string') return cObj.content;
+          }
           return '';
         })
         .join('\n');
@@ -91,7 +101,7 @@ export default function Editor() {
 
   // Best-effort JSON object parser that tolerates minor formatting issues often
   // produced by LLMs (e.g., extra commentary, trailing commas, jsonc fences).
-  const parseJsonObjectLoose = (raw: string): Record<string, any> | null => {
+  const parseJsonObjectLoose = (raw: string): Record<string, unknown> | null => {
     const tryParse = (s: string) => {
       try { return JSON.parse(s); } catch { return null; }
     };
@@ -136,7 +146,7 @@ export default function Editor() {
       await sessionManager.getOrCreateActiveSession();
       const items = await componentManager.listComponents('*');
       setHistory(items);
-    } catch (e) {
+    } catch {
       // no-op
     }
   };
@@ -184,10 +194,15 @@ export default function Editor() {
           const parsed = parseJsonObjectLoose(translationsRaw);
           // Expect shape { "key": "English text", ... }
           if (parsed && typeof parsed === 'object') {
-            console.log('[Editor] Queuing TRANSLATIONS block for processing after component render:', Object.keys(parsed));
+            // Convert unknown values to strings
+            const translationsRecord: Record<string, string> = {};
+            for (const [key, value] of Object.entries(parsed)) {
+              translationsRecord[key] = typeof value === 'string' ? value : String(value || '');
+            }
+            console.log('[Editor] Queuing TRANSLATIONS block for processing after component render:', Object.keys(translationsRecord));
             setPendingTranslations(prev => ({
               ...prev,
-              translationsFromBlocks: parsed
+              translationsFromBlocks: translationsRecord
             }));
             lastProcessedTranslationsRef.current = translationsRaw;
           }
@@ -236,12 +251,12 @@ export default function Editor() {
         }
       })();
     }
-  }, [messages]);
+  }, [messages, componentManager, currentComponent, loadHistory, sessionManager]);
 
   // Initial load of component history
   useEffect(() => {
     loadHistory();
-  }, []);
+  }, [loadHistory]);
 
   // Load current component from localStorage on client side only
   useEffect(() => {
@@ -271,8 +286,8 @@ export default function Editor() {
         console.log('[Editor] Component rendered successfully, processing queued translations...');
         processingTranslationsRef.current = true;
         
-        try {
-          const session = await sessionManager.getOrCreateActiveSession();
+        try {          
+          await sessionManager.getOrCreateActiveSession();
           
           // Process TRANSLATIONS blocks first
           if (translationsFromBlocks) {
@@ -283,7 +298,7 @@ export default function Editor() {
           // Process extracted translations from code
           if (extractedFromCode) {
             console.log('[Editor] Processing extracted translations:', Object.keys(extractedFromCode));
-            const result = await db.upsertTranslations(extractedFromCode);
+            await db.upsertTranslations(extractedFromCode);
             
             // Only translate keys specific to this component
             const keysToTranslate = Object.keys(extractedFromCode);
@@ -391,7 +406,7 @@ export default function Editor() {
         setAllKeys(entries.map(e => e.key));
       } catch {}
     })();
-  }, []);
+  }, [db]);
 
   const updateKeySuggestions = (value: string) => {
     const q = value.split(/\s+/).pop() || '';

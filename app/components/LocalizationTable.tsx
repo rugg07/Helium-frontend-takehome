@@ -203,7 +203,7 @@ export default function LocalizationTable() {
       if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
       window.removeEventListener('message', handler);
     };
-  }, []);
+  }, [loadEntries]);
 
   const languages = [
     { code: 'en', name: 'English', flag: '🇺🇸' },

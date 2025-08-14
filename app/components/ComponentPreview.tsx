@@ -45,7 +45,7 @@ export default function ComponentPreview({ componentCode }: ComponentPreviewProp
   const [translations, setTranslations] = useState<Record<string, string>>({});
   const [isLoadingTranslations, setIsLoadingTranslations] = useState<boolean>(false);
   const [hasError, setHasError] = useState<boolean>(false);
-  const autoTranslateRanRef = useRef<Set<string>>(new Set());
+  // Removed unused autoTranslateRanRef
   const db = LocalizationDB.getInstance();
 
   useEffect(() => {
@@ -124,7 +124,7 @@ export default function ComponentPreview({ componentCode }: ComponentPreviewProp
     return () => {
       cancelled = true;
     };
-  }, [currentLocale]);
+  }, [currentLocale, db]);
 
   // Listen for granular translation updates from LocalizationTable
   useEffect(() => {

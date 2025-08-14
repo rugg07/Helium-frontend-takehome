@@ -19,7 +19,7 @@ interface ComponentWizardProps {
 
 export default function NaturalLanguageBridge({ onPromptGenerated, onClose }: ComponentWizardProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [responses, setResponses] = useState<Record<string, any>>({});
+  const [responses, setResponses] = useState<Record<string, unknown>>({});
   const [generatedPrompt, setGeneratedPrompt] = useState<string>('');
 
   const steps: RequirementStep[] = [
@@ -85,7 +85,7 @@ export default function NaturalLanguageBridge({ onPromptGenerated, onClose }: Co
     }
   ];
 
-  const handleStepResponse = (value: any) => {
+  const handleStepResponse = (value: unknown) => {
     const step = steps[currentStep];
     setResponses(prev => ({ ...prev, [step.id]: value }));
 
@@ -97,7 +97,7 @@ export default function NaturalLanguageBridge({ onPromptGenerated, onClose }: Co
     }
   };
 
-  const generateTechnicalPrompt = (allResponses: Record<string, any>) => {
+  const generateTechnicalPrompt = (allResponses: Record<string, unknown>) => {
     let prompt = '';
 
     // Start with component type and purpose
@@ -107,17 +107,17 @@ export default function NaturalLanguageBridge({ onPromptGenerated, onClose }: Co
     prompt += `Create a ${componentType} component that ${purpose}. `;
 
     // Add visual style requirements
-    const visualStyles = allResponses.visualStyle || [];
+    const visualStyles = Array.isArray(allResponses.visualStyle) ? allResponses.visualStyle : [];
     if (visualStyles.length > 0) {
       prompt += `The design should be ${visualStyles.join(', ')}. `;
     }
 
     // Add interaction requirements
-    const interactions = allResponses.interactions || [];
+    const interactions = Array.isArray(allResponses.interactions) ? allResponses.interactions : [];
     if (interactions.length > 0) {
-      prompt += `Include these interactions: ${interactions.map((i: string) => {
+      prompt += `Include these interactions: ${interactions.map((i: unknown) => {
         const option = steps.find(s => s.id === 'interactions')?.options?.find(o => o.value === i);
-        return option?.description || i;
+        return option?.description || String(i);
       }).join(', ')}. `;
     }
 
@@ -135,8 +135,8 @@ export default function NaturalLanguageBridge({ onPromptGenerated, onClose }: Co
     }
 
     // Add specific features
-    const specificFeatures = allResponses.specificFeatures;
-    if (specificFeatures?.trim()) {
+    const specificFeatures = typeof allResponses.specificFeatures === 'string' ? allResponses.specificFeatures : '';
+    if (specificFeatures.trim()) {
       prompt += `Additional requirements: ${specificFeatures}. `;
     }
 
@@ -285,7 +285,7 @@ Technical requirements:
               <MultiSelectInput
                 options={currentStepData.options || []}
                 onSubmit={handleStepResponse}
-                selectedValues={responses[currentStepData.id] || []}
+                selectedValues={Array.isArray(responses[currentStepData.id]) ? responses[currentStepData.id] as string[] : []}
               />
             )}
 
@@ -293,7 +293,7 @@ Technical requirements:
               <TextInput
                 placeholder={currentStepData.placeholder}
                 onSubmit={handleStepResponse}
-                initialValue={responses[currentStepData.id] || ''}
+                initialValue={typeof responses[currentStepData.id] === 'string' ? responses[currentStepData.id] as string : ''}
               />
             )}
 
@@ -302,7 +302,7 @@ Technical requirements:
                 min={currentStepData.min || 1}
                 max={currentStepData.max || 5}
                 onSubmit={handleStepResponse}
-                initialValue={responses[currentStepData.id] || 3}
+                initialValue={typeof responses[currentStepData.id] === 'number' ? responses[currentStepData.id] as number : 3}
               />
             )}
           </div>

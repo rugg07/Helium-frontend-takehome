@@ -29,7 +29,7 @@ export default function MultiLanguagePreview({ componentCode, className = '' }: 
   const [translations, setTranslations] = useState<Record<string, Record<string, string>>>({});
   const [loading, setLoading] = useState(true);
   const [layoutIssues, setLayoutIssues] = useState<Record<string, string[]>>({});
-  const [syncedState, setSyncedState] = useState<any>(null);
+  // Removed unused syncedState
 
   const db = LocalizationDB.getInstance();
   
@@ -75,7 +75,7 @@ export default function MultiLanguagePreview({ componentCode, className = '' }: 
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [loadAllTranslations]);
 
   // Process component code for Sandpack - SANITIZE TO PREVENT EXPORT CONFLICTS
   const processedCode = useMemo(() => {
@@ -158,7 +158,7 @@ export default function MultiLanguagePreview({ componentCode, className = '' }: 
       issues[lang] = detectLayoutIssues(lang);
     });
     setLayoutIssues(issues);
-  }, [selectedLanguages, translations]);
+  }, [selectedLanguages, translations, detectLayoutIssues]);
 
   if (loading) {
     console.log('[MultiLanguagePreview] Showing loading state');

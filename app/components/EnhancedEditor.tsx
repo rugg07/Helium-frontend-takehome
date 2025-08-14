@@ -73,21 +73,31 @@ export default function EnhancedEditor() {
   const processingTranslationsRef = useRef<boolean>(false);
   
   // Robustly extract plain text content from a message, regardless of SDK shape
-  const getMessageText = (msg: any): string => {
-    if (!msg) return '';
-    if (Array.isArray(msg.parts)) {
-      return msg.parts
-        .filter((p: any) => p && (p.type === 'text' || typeof p === 'string'))
-        .map((p: any) => (typeof p === 'string' ? p : (p.text || '')))
+  const getMessageText = (msg: unknown): string => {
+    if (!msg || typeof msg !== 'object') return '';
+    
+    const msgObj = msg as Record<string, unknown>;
+    
+    if (Array.isArray(msgObj.parts)) {
+      return msgObj.parts
+        .filter((p: unknown) => p && (typeof p === 'object' && (p as Record<string, unknown>).type === 'text' || typeof p === 'string'))
+        .map((p: unknown) => {
+          if (typeof p === 'string') return p;
+          const partObj = p as Record<string, unknown>;
+          return typeof partObj.text === 'string' ? partObj.text : '';
+        })
         .join('\n');
     }
-    if (typeof msg.content === 'string') return msg.content;
-    if (Array.isArray(msg.content)) {
-      return msg.content
-        .map((c: any) => {
+    if (typeof msgObj.content === 'string') return msgObj.content;
+    if (Array.isArray(msgObj.content)) {
+      return msgObj.content
+        .map((c: unknown) => {
           if (typeof c === 'string') return c;
-          if (c?.type === 'text') return c.text || '';
-          if (c?.content) return c.content;
+          if (typeof c === 'object' && c) {
+            const cObj = c as Record<string, unknown>;
+            if (cObj.type === 'text' && typeof cObj.text === 'string') return cObj.text;
+            if (typeof cObj.content === 'string') return cObj.content;
+          }
           return '';
         })
         .join('\n');
@@ -96,7 +106,7 @@ export default function EnhancedEditor() {
   };
 
   // Best-effort JSON object parser
-  const parseJsonObjectLoose = (raw: string): Record<string, any> | null => {
+  const parseJsonObjectLoose = (raw: string): Record<string, unknown> | null => {
     const tryParse = (s: string) => {
       try { return JSON.parse(s); } catch { return null; }
     };
@@ -147,7 +157,7 @@ export default function EnhancedEditor() {
       await sessionManager.getOrCreateActiveSession();
       const items = await componentManager.listComponents('*');
       setHistory(items);
-    } catch (e) {
+    } catch {
       // no-op
     }
   };
@@ -191,10 +201,15 @@ export default function EnhancedEditor() {
         if (translationsRaw && translationsRaw !== lastProcessedTranslationsRef.current) {
           const parsed = parseJsonObjectLoose(translationsRaw);
           if (parsed && typeof parsed === 'object') {
-            console.log('[EnhancedEditor] Queuing TRANSLATIONS block for processing:', Object.keys(parsed));
+            // Convert unknown values to strings
+            const translationsRecord: Record<string, string> = {};
+            for (const [key, value] of Object.entries(parsed)) {
+              translationsRecord[key] = typeof value === 'string' ? value : String(value || '');
+            }
+            console.log('[EnhancedEditor] Queuing TRANSLATIONS block for processing:', Object.keys(translationsRecord));
             setPendingTranslations(prev => ({
               ...prev,
-              translationsFromBlocks: parsed
+              translationsFromBlocks: translationsRecord
             }));
             lastProcessedTranslationsRef.current = translationsRaw;
           }
@@ -240,7 +255,7 @@ export default function EnhancedEditor() {
         }
       })();
     }
-  }, [messages, currentComponent]);
+  }, [messages, currentComponent, componentManager, loadHistory, sessionManager]);
 
   // Initial load
   useEffect(() => {
@@ -271,7 +286,7 @@ export default function EnhancedEditor() {
         processingTranslationsRef.current = true;
         
         try {
-          const session = await sessionManager.getOrCreateActiveSession();
+          await sessionManager.getOrCreateActiveSession();
           
           if (translationsFromBlocks) {
             console.log('[EnhancedEditor] Processing TRANSLATIONS block:', Object.keys(translationsFromBlocks));
@@ -280,7 +295,7 @@ export default function EnhancedEditor() {
           
           if (extractedFromCode) {
             console.log('[EnhancedEditor] Processing extracted translations:', Object.keys(extractedFromCode));
-            const result = await db.upsertTranslations(extractedFromCode);
+            await db.upsertTranslations(extractedFromCode);
             
             const keysToTranslate = Object.keys(extractedFromCode);
             
@@ -375,7 +390,7 @@ export default function EnhancedEditor() {
         setAllKeys(entries.map(e => e.key));
       } catch {}
     })();
-  }, []);
+  }, [db]);
 
   const updateKeySuggestions = (value: string) => {
     const q = value.split(/\s+/).pop() || '';
@@ -410,17 +425,7 @@ export default function EnhancedEditor() {
     }
   };
 
-  const toggleVersions = async (id: string) => {
-    if (expandedId === id) {
-      setExpandedId(null);
-      return;
-    }
-    setExpandedId(id);
-    if (!versions[id]) {
-      const list = await componentManager.listComponentVersions(id);
-      setVersions(prev => ({ ...prev, [id]: list }));
-    }
-  };
+  // Removed unused toggleVersions function
 
   return (
     <div className="flex h-full">

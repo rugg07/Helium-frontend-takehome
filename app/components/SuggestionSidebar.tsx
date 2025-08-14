@@ -20,15 +20,6 @@ export default function SuggestionSidebar({ onSuggestionSelect, className = '' }
   const db = LocalizationDB.getInstance();
   const componentManager = ComponentManager.getInstance();
 
-  useEffect(() => {
-    loadSuggestions();
-    // Load hidden suggestions from localStorage
-    const hidden = localStorage.getItem('hiddenSuggestions');
-    if (hidden) {
-      setHiddenSuggestions(new Set(JSON.parse(hidden)));
-    }
-  }, []);
-
   const loadSuggestions = async () => {
     try {
       setLoading(true);
@@ -61,6 +52,15 @@ export default function SuggestionSidebar({ onSuggestionSelect, className = '' }
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadSuggestions();
+    // Load hidden suggestions from localStorage
+    const hidden = localStorage.getItem('hiddenSuggestions');
+    if (hidden) {
+      setHiddenSuggestions(new Set(JSON.parse(hidden)));
+    }
+  }, [loadSuggestions]);
 
   const filteredSuggestions = suggestions.filter(suggestion => {
     if (hiddenSuggestions.has(suggestion.id)) return false;
