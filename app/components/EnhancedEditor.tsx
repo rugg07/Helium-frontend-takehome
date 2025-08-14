@@ -5,7 +5,6 @@ import { useState, useEffect, useRef } from 'react';
 import ComponentPreview from './ComponentPreview';
 import SuggestionSidebar from './SuggestionSidebar';
 import NaturalLanguageBridge from './NaturalLanguageBridge';
-import MultiLanguagePreview from './MultiLanguagePreview';
 import { LocalizationDB } from '../lib/database';
 import { SessionManager, ComponentManager } from '../lib/database';
 import type { ComponentRecord, ComponentVersion } from '../lib/database';
@@ -35,13 +34,10 @@ const loadCurrentComponent = (): string => {
   return '';
 };
 
-type ViewMode = 'single' | 'multi';
-
 export default function EnhancedEditor() {
   const [input, setInput] = useState('');
   const { messages, sendMessage } = useChat();
   const [currentComponent, setCurrentComponent] = useState<string>('');
-  const [viewMode, setViewMode] = useState<ViewMode>('single');
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   
@@ -420,6 +416,8 @@ export default function EnhancedEditor() {
     const rec = await componentManager.getComponent(id);
     if (rec) {
       console.log('[EnhancedEditor] Loading component from history:', rec.name);
+      console.log('[EnhancedEditor] Component code length:', rec.code.length);
+      console.log('[EnhancedEditor] Component code preview:', rec.code.substring(0, 200));
       setCurrentComponent(rec.code);
       saveCurrentComponent(rec.code);
     }
@@ -466,30 +464,7 @@ export default function EnhancedEditor() {
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode('single')}
-                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                    viewMode === 'single'
-                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                  }`}
-                >
-                  Single View
-                </button>
-                <button
-                  onClick={() => setViewMode('multi')}
-                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                    viewMode === 'multi'
-                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                  }`}
-                >
-                  🌍 Multi-Language
-                </button>
-              </div>
-            </div>
+
           </div>
         </div>
 
@@ -505,8 +480,6 @@ export default function EnhancedEditor() {
                     <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                       <div>• 💡 <strong>Smart Suggestions:</strong> AI-powered component recommendations</div>
                       <div>• 🧙‍♂️ <strong>Component Wizard:</strong> Convert business requirements to technical specs</div>
-                      <div>• 🌍 <strong>Multi-Language Preview:</strong> See components in multiple languages simultaneously</div>
-                      <div>• 📊 <strong>Layout Analysis:</strong> Automatic detection of localization issues</div>
                     </div>
                   </div>
                 )}
@@ -662,11 +635,7 @@ export default function EnhancedEditor() {
 
           {/* Preview Section */}
           <div className="w-1/2 h-full border-l border-gray-200 dark:border-gray-700">
-            {viewMode === 'single' ? (
-              <ComponentPreview componentCode={currentComponent} />
-            ) : (
-              <MultiLanguagePreview componentCode={currentComponent} />
-            )}
+            <ComponentPreview componentCode={currentComponent} />
           </div>
         </div>
       </div>

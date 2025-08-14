@@ -7,6 +7,7 @@ export default function LocalizationTable() {
   const [entries, setEntries] = useState<LocalizationEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   const db = LocalizationDB.getInstance();
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -40,10 +41,20 @@ export default function LocalizationTable() {
     try {
       setLoading(true);
       setError(null);
+      console.log('[LocalizationTable] Starting to load entries...');
+      
+      // Ensure database is initialized before trying to use it
+      await db.init();
+      console.log('[LocalizationTable] Database initialized');
+      setIsInitialized(true);
+      
       const data = await db.getAll();
-      setEntries(data);
+      console.log('[LocalizationTable] Loaded entries:', data.length);
+      setEntries(data || []); // Ensure we always have an array
     } catch (err) {
+      console.error('[LocalizationTable] Error loading entries:', err);
       setError(err instanceof Error ? err.message : 'Failed to load entries');
+      setEntries([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -187,23 +198,40 @@ export default function LocalizationTable() {
   };
 
   useEffect(() => {
-    loadEntries();
+    // Wrap in try-catch to prevent crashes
+    const initializeComponent = async () => {
+      try {
+        console.log('[LocalizationTable] Component mounting...');
+        await loadEntries();
+      } catch (err) {
+        console.error('[LocalizationTable] Failed to initialize:', err);
+        setError('Failed to initialize localization table');
+        setLoading(false);
+      }
+    };
+
+    initializeComponent();
 
     // Debounced reload for bursts of updates (typing edits, batch writes)
     const handler = (event: MessageEvent) => {
-      if (event.data?.type === 'LOCALIZATIONS_UPDATED') {
-        if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
-        reloadTimerRef.current = setTimeout(() => {
-          loadEntries();
-        }, 250);
+      try {
+        if (event.data?.type === 'LOCALIZATIONS_UPDATED') {
+          if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+          reloadTimerRef.current = setTimeout(() => {
+            loadEntries();
+          }, 250);
+        }
+      } catch (err) {
+        console.error('[LocalizationTable] Error in message handler:', err);
       }
     };
+    
     window.addEventListener('message', handler);
     return () => {
       if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
       window.removeEventListener('message', handler);
     };
-  }, [loadEntries]);
+  }, []); // Empty dependency array to run only once on mount
 
   const languages = [
     { code: 'en', name: 'English', flag: '🇺🇸' },

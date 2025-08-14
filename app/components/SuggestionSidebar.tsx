@@ -60,7 +60,7 @@ export default function SuggestionSidebar({ onSuggestionSelect, className = '' }
     if (hidden) {
       setHiddenSuggestions(new Set(JSON.parse(hidden)));
     }
-  }, [loadSuggestions]);
+  }, []); // Empty dependency array - run only once on mount
 
   const filteredSuggestions = suggestions.filter(suggestion => {
     if (hiddenSuggestions.has(suggestion.id)) return false;
